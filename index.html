@@ -867,7 +867,7 @@ async function fetchQuestions(cnt){
       headers: headers,
       body: JSON.stringify({
         model: CONFIG.MODEL,
-        max_tokens: 1500,
+        max_tokens: 400,
         messages: [{ role: 'user', content: prompt }]
       })
     });
