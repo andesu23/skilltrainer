@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillTrainer</title>
+<!--
+  ДЕПЛОЙ:
+  - Netlify / Vercel: просто перетащи этот файл или папку
+  - API ключ: в продакшне замени API_KEY ниже на свой ключ
+    или создай переменную окружения и проксируй через serverless function
+  - Текущий режим: работает через claude.ai (ключ не нужен)
+-->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--border:rgba(0,0,0,.1);--border-md:rgba(0,0,0,.18);
+  --text:#1a1a18;--muted:#6b6b68;--hint:#9b9b98;
+  --blue:#378ADD;--blue-l:#E6F1FB;--blue-d:#0C447C;
+  --green:#639922;--green-l:#EAF3DE;--green-d:#27500A;
+  --red:#E24B4A;--red-l:#FCEBEB;
+  --amber:#BA7517;--amber-l:#FAEEDA;
+  --purple:#534AB7;--purple-l:#EEEDFE;
+  --r:8px;--rl:12px;--rxl:16px
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1a1a18;--surface:#242422;--border:rgba(255,255,255,.1);--border-md:rgba(255,255,255,.18);
+  --text:#f0efe8;--muted:#a0a09a;--hint:#6a6a65;
+  --blue-l:#042C53;--blue-d:#85B7EB;--green-l:#173404;--green-d:#C0DD97;
+  --red-l:#501313;--amber-l:#412402;--purple-l:#26215C
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5}
+.h{display:none!important}
+input,select,button,textarea{font-family:inherit;font-size:inherit}
+
+/* ── AUTH ─────────────────────── */
+.awrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.acard{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rxl);padding:2rem;width:100%;max-width:400px}
+.alogo{font-size:22px;font-weight:600;margin-bottom:4px}
+.alogo span{color:var(--blue)}
+.asub{font-size:13px;color:var(--muted);margin-bottom:1.5rem}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:9px 12px;border:.5px solid var(--border-md);border-radius:var(--r);background:var(--surface);color:var(--text);font-size:14px;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(55,138,221,.12)}
+.field textarea{resize:vertical;min-height:80px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{width:100%;padding:11px;font-size:14px;font-weight:500;border:none;border-radius:var(--r);cursor:pointer;transition:opacity .15s,background .15s}
+.btn-b{background:var(--blue);color:#fff}
+.btn-b:hover{opacity:.88}
+.btn-o{background:transparent;border:.5px solid var(--border-md);color:var(--text);margin-top:8px}
+.btn-o:hover{background:var(--bg)}
+.btn-sm{width:auto;padding:8px 18px;font-size:13px}
+.btn-danger{background:var(--red-l);color:var(--red);border:.5px solid var(--red-l)}
+.btn-danger:hover{opacity:.8}
+.aswitch{text-align:center;margin-top:1rem;font-size:13px;color:var(--muted)}
+.aswitch a{color:var(--blue);cursor:pointer}
+.merr{background:var(--red-l);color:var(--red);padding:9px 12px;border-radius:var(--r);font-size:13px;margin-bottom:1rem;border:.5px solid rgba(226,75,74,.2)}
+.mok{background:var(--green-l);color:var(--green-d);padding:9px 12px;border-radius:var(--r);font-size:13px;margin-bottom:1rem}
+.divider{height:.5px;background:var(--border);margin:1.25rem 0}
+
+/* ── LAYOUT ───────────────────── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:224px;background:var(--surface);border-right:.5px solid var(--border);padding:1.25rem 0;flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.slogo{font-size:17px;font-weight:600;padding:0 1.25rem 1.25rem;border-bottom:.5px solid var(--border)}
+.slogo span{color:var(--blue)}
+.ngrp{padding:1rem .75rem 0}
+.nlbl{font-size:11px;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:0 .5rem;margin-bottom:4px}
+.ni{display:flex;align-items:center;gap:9px;padding:8px .75rem;border-radius:var(--r);cursor:pointer;font-size:14px;color:var(--muted);transition:background .12s,color .12s;margin-bottom:2px;user-select:none}
+.ni:hover{background:var(--bg);color:var(--text)}
+.ni.on{background:var(--blue-l);color:var(--blue-d);font-weight:500}
+.ni .ico{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sfooter{margin-top:auto;padding:1rem 1.25rem 0;border-top:.5px solid var(--border)}
+.upill{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:var(--r);padding:6px;margin:-6px;transition:background .12s}
+.upill:hover{background:var(--bg)}
+.av{width:36px;height:36px;border-radius:50%;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--blue-d);flex-shrink:0}
+.uname{font-size:13px;font-weight:500;color:var(--text)}
+.urole{font-size:11px;color:var(--hint)}
+.lgbtn{margin-top:10px;width:100%;padding:7px;font-size:13px;background:transparent;border:.5px solid var(--border);border-radius:var(--r);cursor:pointer;color:var(--muted);transition:background .12s}
+.lgbtn:hover{background:var(--bg)}
+.main{flex:1;overflow-y:auto;padding:2rem;max-width:960px}
+.page{display:none;animation:fadein .2s ease}
+.page.on{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ptitle{font-size:20px;font-weight:500;margin-bottom:4px}
+.psub{font-size:13px;color:var(--muted);margin-bottom:1.75rem}
+.section-gap{margin-bottom:1.5rem}
+
+/* ── CARDS ────────────────────── */
+.card{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:15px;font-weight:500;margin-bottom:1rem}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-bottom:1.5rem}
+.sc{background:var(--bg);border-radius:var(--r);padding:1rem}
+.sv{font-size:26px;font-weight:500}
+.sl{font-size:12px;color:var(--muted);margin-top:2px}
+.pw{background:var(--bg);border-radius:99px;height:6px}
+.pf{height:6px;border-radius:99px;background:var(--blue);transition:width .5s ease}
+.pf.g{background:var(--green)}
+.pf.a{background:var(--amber)}
+.pf.r{background:var(--red)}
+.hbanner{background:var(--blue-l);border-radius:var(--rl);padding:1rem 1.25rem;display:flex;align-items:center;gap:14px;margin-bottom:1.5rem}
+.hbico{font-size:24px}
+.hbt{font-size:15px;font-weight:500;color:var(--blue-d)}
+.hbs{font-size:12px;color:var(--blue);margin-top:2px}
+
+/* ── BADGES ───────────────────── */
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500}
+.bg{background:var(--green-l);color:var(--green-d)}
+.bb{background:var(--blue-l);color:var(--blue-d)}
+.ba{background:var(--amber-l);color:var(--amber)}
+.br{background:var(--red-l);color:var(--red)}
+.bp{background:var(--purple-l);color:var(--purple)}
+
+/* ── TOPICS ───────────────────── */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(192px,1fr));gap:12px;margin-bottom:1.5rem}
+.tc{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);padding:1.25rem;cursor:pointer;transition:border-color .15s,transform .12s,background .15s}
+.tc:hover{border-color:var(--border-md);transform:translateY(-2px)}
+.tc.sel{border:2px solid var(--blue);background:var(--blue-l)}
+.tcico{font-size:22px;margin-bottom:8px}
+.tcn{font-size:14px;font-weight:500}
+.tcd{font-size:12px;color:var(--muted);margin-top:3px}
+.tc.sel .tcn{color:var(--blue-d)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+.chip{padding:6px 14px;border-radius:99px;border:.5px solid var(--border-md);background:transparent;cursor:pointer;font-size:13px;color:var(--muted);transition:all .12s}
+.chip:hover{background:var(--bg)}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.crow{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem}
+.crow label{font-size:13px;color:var(--muted);white-space:nowrap}
+.crow input[type=range]{flex:1;accent-color:var(--blue)}
+.cval{font-size:14px;font-weight:500;min-width:24px}
+
+/* ── QUIZ ─────────────────────── */
+.qhdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+.qcnt{font-size:13px;color:var(--muted)}
+.qtmr{font-size:13px;font-weight:500;background:var(--amber-l);color:var(--amber);padding:4px 10px;border-radius:99px;font-variant-numeric:tabular-nums}
+.qbox{background:var(--bg);border-radius:var(--r);padding:1.25rem;font-size:15px;line-height:1.65;margin-bottom:1.25rem}
+.opts{display:flex;flex-direction:column;gap:8px;margin-bottom:1.25rem}
+.opt{text-align:left;padding:12px 1rem;font-size:14px;background:var(--surface);border:.5px solid var(--border-md);border-radius:var(--r);cursor:pointer;color:var(--text);transition:background .12s,border-color .12s;line-height:1.5}
+.opt:hover:not(:disabled){background:var(--bg);border-color:var(--border-md)}
+.opt .lt{font-weight:500;color:var(--hint);margin-right:8px}
+.opt.cor{background:var(--green-l);border-color:var(--green);color:var(--green-d)}
+.opt.cor .lt{color:var(--green)}
+.opt.wrg{background:var(--red-l);border-color:var(--red);color:#791F1F}
+.opt.wrg .lt{color:var(--red)}
+.opt:disabled{cursor:default}
+.expl{border-left:3px solid var(--blue);padding:10px 14px;font-size:13px;color:var(--muted);background:var(--blue-l);border-radius:0 var(--r) var(--r) 0;margin-bottom:1.25rem;line-height:1.6;animation:fadein .2s ease}
+.nbtn{padding:11px 1.75rem;font-size:14px;font-weight:500;background:var(--blue);color:#fff;border:none;border-radius:var(--r);cursor:pointer;transition:opacity .15s}
+.nbtn:hover{opacity:.88}
+
+/* LOADING */
+.ldbox{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:14px}
+.spin{width:34px;height:34px;border:2.5px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ldsteps{margin-top:12px;font-size:13px;color:var(--hint)}
+.ldstep{opacity:0;transition:opacity .4s}
+.ldstep.vis{opacity:1}
+
+/* ── RESULTS ──────────────────── */
+.rcirc{width:90px;height:90px;border-radius:50%;border:3px solid var(--blue);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:26px;font-weight:600;color:var(--blue)}
+.ri{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r);margin-bottom:6px;border:.5px solid var(--border);font-size:13px;align-items:flex-start}
+.rdot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.ri.ok .rdot{background:var(--green)}
+.ri.fail .rdot{background:var(--red)}
+.riq{line-height:1.5}
+.ria{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── ACHIEVEMENTS ─────────────── */
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px}
+.ac{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);padding:1.25rem;text-align:center;transition:transform .15s}
+.ac:not(.lk):hover{transform:translateY(-2px)}
+.ac.lk{opacity:.38;filter:grayscale(1)}
+.aico{font-size:30px;margin-bottom:8px}
+.an{font-size:14px;font-weight:500}
+.ad{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.abadge{display:inline-block;margin-top:8px;font-size:11px;padding:3px 10px;border-radius:99px}
+.abadge.done{background:var(--green-l);color:var(--green-d)}
+.abadge.lk{background:var(--bg);color:var(--hint)}
+
+/* ── PROFILE ──────────────────── */
+.prof-header{display:flex;align-items:center;gap:1.25rem;margin-bottom:1.5rem}
+.prof-av{width:72px;height:72px;border-radius:50%;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;color:var(--blue-d);flex-shrink:0}
+.prof-name{font-size:18px;font-weight:500}
+.prof-meta{font-size:13px;color:var(--muted);margin-top:3px}
+.pw-meter{height:4px;border-radius:99px;background:var(--bg);margin-top:6px;overflow:hidden}
+.pw-fill{height:4px;border-radius:99px;transition:width .3s,background .3s}
+
+/* ── ADMIN ────────────────────── */
+.twrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 12px;font-size:11px;font-weight:500;color:var(--hint);border-bottom:.5px solid var(--border);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td{padding:10px 12px;border-bottom:.5px solid var(--border);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1rem}
+@media(max-width:720px){.twocol{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1rem}}
+.rflex{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.srch{flex:1;max-width:220px;padding:8px 12px;border:.5px solid var(--border-md);border-radius:var(--r);background:var(--surface);color:var(--text);font-size:14px;outline:none;transition:border-color .15s}
+.srch:focus{border-color:var(--blue)}
+
+/* ── TOAST ────────────────────── */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--text);color:var(--surface);padding:11px 18px;border-radius:var(--rl);font-size:14px;z-index:999;opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;pointer-events:none;max-width:300px}
+.toast.show{opacity:1;transform:none}
+.btnrow{display:flex;gap:10px}
+.btnrow .btn{flex:1}
+.tag{display:inline-block;background:var(--bg);border:.5px solid var(--border);border-radius:99px;font-size:12px;padding:2px 10px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- ═══ AUTH ════════════════════════════════════════ -->
+<div id="auth">
+  <div class="awrap" id="vlogin">
+    <div class="acard">
+      <div class="alogo">Skill<span>Trainer</span></div>
+      <div class="asub">Корпоративное обучение</div>
+      <div id="lerr" class="merr h"></div>
+      <div class="field"><label>Email</label><input type="email" id="lemail" placeholder="you@company.com" autocomplete="email"></div>
+      <div class="field"><label>Пароль</label><input type="password" id="lpass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-b" onclick="doLogin()">Войти</button>
+      <div class="aswitch">Нет аккаунта? <a onclick="showReg()">Зарегистрироваться</a></div>
+    </div>
+  </div>
+  <div class="awrap h" id="vreg">
+    <div class="acard">
+      <div class="alogo">Skill<span>Trainer</span></div>
+      <div class="asub">Создать аккаунт</div>
+      <div id="rerr" class="merr h"></div>
+      <div id="rok" class="mok h"></div>
+      <div class="field-row">
+        <div class="field"><label>Имя</label><input type="text" id="rfname" placeholder="Иван" autocomplete="given-name"></div>
+        <div class="field"><label>Фамилия</label><input type="text" id="rlname" placeholder="Петров" autocomplete="family-name"></div>
+      </div>
+      <div class="field"><label>Username</label><input type="text" id="runame" placeholder="ivan_petrov"></div>
+      <div class="field"><label>Email</label><input type="email" id="remail" placeholder="you@company.com" autocomplete="email"></div>
+      <div class="field"><label>Компания / Отдел</label><input type="text" id="rcomp" placeholder="ООО Ромашка"></div>
+      <div class="field-row">
+        <div class="field"><label>Должность</label><input type="text" id="rrole" placeholder="Аналитик..."></div>
+        <div class="field"><label>Опыт</label>
+          <select id="rexp">
+            <option value="нет опыта">Нет опыта</option>
+            <option value="менее 1 года">Менее 1 года</option>
+            <option value="1-3 года">1–3 года</option>
+            <option value="3-5 лет">3–5 лет</option>
+            <option value="более 5 лет">Более 5 лет</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input type="password" id="rpass" placeholder="Минимум 6 символов" autocomplete="new-password" oninput="checkPwStrength(this.value)" onkeydown="if(event.key==='Enter')doReg()">
+        <div class="pw-meter"><div class="pw-fill" id="pwfill" style="width:0%"></div></div>
+      </div>
+      <button class="btn btn-b" onclick="doReg()">Зарегистрироваться</button>
+      <button class="btn btn-o" onclick="showLogin()">← Уже есть аккаунт</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═════════════════════════════════════════ -->
+<div class="layout h" id="app">
+  <nav class="sidebar">
+    <div class="slogo">Skill<span>Trainer</span></div>
+    <div class="ngrp">
+      <div class="nlbl">Обучение</div>
+      <div class="ni on" id="nav-dashboard" onclick="go('dashboard')"><span class="ico">🏠</span> Главная</div>
+      <div class="ni" id="nav-learn" onclick="go('learn')"><span class="ico">📚</span> Учиться</div>
+      <div class="ni" id="nav-achievements" onclick="go('achievements')"><span class="ico">🏆</span> Достижения</div>
+    </div>
+    <div class="ngrp h" id="adminnav">
+      <div class="nlbl">Управление</div>
+      <div class="ni" id="nav-admin" onclick="go('admin')"><span class="ico">📊</span> CRM / Аналитика</div>
+    </div>
+    <div class="sfooter">
+      <div class="upill" onclick="go('profile')" title="Открыть профиль">
+        <div class="av" id="sav">ИП</div>
+        <div><div class="uname" id="sname">Имя</div><div class="urole" id="srole">Сотрудник</div></div>
+      </div>
+      <button class="lgbtn" onclick="doLogout()">Выйти</button>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page on" id="page-dashboard">
+      <div class="ptitle" id="dgreet">Привет!</div>
+      <div class="psub">Твой прогресс обучения</div>
+      <div class="hbanner">
+        <div class="hbico">⏱️</div>
+        <div><div class="hbt" id="dhours">0 ч 0 мин</div><div class="hbs">Общее время обучения</div></div>
+      </div>
+      <div class="sgrid">
+        <div class="sc"><div class="sv" id="dtests">0</div><div class="sl">Тестов пройдено</div></div>
+        <div class="sc"><div class="sv" id="dscore">0%</div><div class="sl">Средний балл</div></div>
+        <div class="sc"><div class="sv" id="dstreak">0</div><div class="sl">Дней подряд</div></div>
+        <div class="sc"><div class="sv" id="dtopics">0</div><div class="sl">Тем изучено</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Последние тесты</div>
+        <div id="dhist"></div>
+      </div>
+    </div>
+
+    <!-- LEARN -->
+    <div class="page" id="page-learn">
+      <div class="ptitle">Выбери тему</div>
+      <div class="psub">AI сгенерирует вопросы под твой уровень и опыт</div>
+      <div class="tgrid">
+        <div class="tc sel" data-t="Excel: формулы (VLOOKUP, IF, SUMIF, INDEX/MATCH)" onclick="selTopic(this)"><div class="tcico">📊</div><div class="tcn">Excel формулы</div><div class="tcd">VLOOKUP, IF, SUMIF, INDEX/MATCH</div></div>
+        <div class="tc" data-t="Excel: сводные таблицы Pivot" onclick="selTopic(this)"><div class="tcico">🔄</div><div class="tcn">Сводные таблицы</div><div class="tcd">Pivot, группировка, фильтры</div></div>
+        <div class="tc" data-t="Excel: диаграммы и визуализация данных" onclick="selTopic(this)"><div class="tcico">📈</div><div class="tcn">Диаграммы Excel</div><div class="tcd">Графики, sparklines</div></div>
+        <div class="tc" data-t="SQL: SELECT WHERE ORDER BY LIMIT" onclick="selTopic(this)"><div class="tcico">🗃️</div><div class="tcn">SQL SELECT</div><div class="tcd">WHERE, ORDER BY, LIMIT</div></div>
+        <div class="tc" data-t="SQL: JOIN — INNER LEFT RIGHT FULL OUTER" onclick="selTopic(this)"><div class="tcico">🔗</div><div class="tcn">SQL JOIN</div><div class="tcd">INNER, LEFT, RIGHT JOIN</div></div>
+        <div class="tc" data-t="SQL: GROUP BY COUNT SUM HAVING агрегация" onclick="selTopic(this)"><div class="tcico">🧮</div><div class="tcn">SQL агрегация</div><div class="tcd">GROUP BY, COUNT, SUM, HAVING</div></div>
+        <div class="tc" data-t="SQL: подзапросы и CTE WITH" onclick="selTopic(this)"><div class="tcico">🏗️</div><div class="tcn">SQL подзапросы</div><div class="tcd">Subqueries, CTE, WITH</div></div>
+        <div class="tc" data-t="Анализ данных: описательная статистика среднее медиана дисперсия" onclick="selTopic(this)"><div class="tcico">📉</div><div class="tcn">Статистика данных</div><div class="tcd">Среднее, медиана, дисперсия</div></div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Уровень сложности</div>
+        <div class="chips">
+          <button class="chip on" data-lv="начальный" onclick="selLevel(this)">Начальный</button>
+          <button class="chip" data-lv="средний" onclick="selLevel(this)">Средний</button>
+          <button class="chip" data-lv="продвинутый" onclick="selLevel(this)">Продвинутый</button>
+        </div>
+        <div class="crow">
+          <label>Вопросов:</label>
+          <input type="range" min="3" max="10" value="5" step="1" id="qcnt" oninput="el('qcntv').textContent=this.value">
+          <span class="cval" id="qcntv">5</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-b btn-sm" onclick="startQuiz()">Начать тест →</button>
+          <span id="cache-hint" style="font-size:12px;color:var(--hint)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="page" id="page-quiz">
+      <div class="qhdr">
+        <div class="qcnt" id="qnum">Вопрос 1 из 5</div>
+        <div class="qtmr" id="qtimer">00:00</div>
+      </div>
+      <div class="pw" style="margin-bottom:1.25rem"><div class="pf" id="qpbar" style="width:0%"></div></div>
+      <div class="ldbox h" id="qload">
+        <div class="spin"></div>
+        <div id="qloadmsg" style="font-weight:500">Генерирую вопросы...</div>
+        <div class="ldsteps">
+          <div class="ldstep" id="lstep1">Анализирую тему...</div>
+          <div class="ldstep" id="lstep2">Подбираю примеры...</div>
+          <div class="ldstep" id="lstep3">Почти готово...</div>
+        </div>
+      </div>
+      <div id="quiz-content" class="h">
+        <div class="qbox" id="qqtext"></div>
+        <div class="opts" id="qopts"></div>
+        <div class="expl h" id="qexpl"></div>
+        <div class="merr h" id="qerr"></div>
+        <button class="nbtn h" id="qnext" onclick="qNext()">Следующий →</button>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="page" id="page-results">
+      <div class="ptitle">Результаты</div>
+      <div class="psub" id="rsub"></div>
+      <div class="card section-gap">
+        <div style="text-align:center;padding:1.5rem 0">
+          <div class="rcirc" id="rcirc">0%</div>
+          <div style="font-size:22px;margin-bottom:6px" id="remo">🎉</div>
+          <div style="font-size:14px;color:var(--muted)" id="rmsg"></div>
+        </div>
+        <div class="sgrid" style="margin-bottom:0">
+          <div class="sc"><div class="sv" id="rcor">0</div><div class="sl">Правильно</div></div>
+          <div class="sc"><div class="sv" id="rtot">0</div><div class="sl">Всего</div></div>
+          <div class="sc"><div class="sv" id="rtime">0 мин</div><div class="sl">Время</div></div>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title">Разбор вопросов</div>
+        <div id="rlist"></div>
+      </div>
+      <div class="btnrow">
+        <button class="btn btn-o" onclick="go('learn')">← Тема</button>
+        <button class="btn btn-b" onclick="startQuiz()">Ещё раз →</button>
+      </div>
+    </div>
+
+    <!-- ACHIEVEMENTS -->
+    <div class="page" id="page-achievements">
+      <div class="ptitle">Достижения</div>
+      <div class="psub">Разблокируй награды за обучение</div>
+      <div class="agrid" id="agrid"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="page" id="page-profile">
+      <div class="ptitle">Профиль</div>
+      <div class="psub">Управляй своими данными</div>
+      <div class="prof-header">
+        <div class="prof-av" id="pav">ИП</div>
+        <div>
+          <div class="prof-name" id="pname">Имя Фамилия</div>
+          <div class="prof-meta" id="pmeta">Должность · Компания</div>
+          <div style="margin-top:6px"><span class="tag" id="puname">@username</span></div>
+        </div>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title">Личные данные</div>
+        <div id="profile-err" class="merr h"></div>
+        <div id="profile-ok" class="mok h"></div>
+        <div class="field-row">
+          <div class="field"><label>Имя</label><input type="text" id="pfname" placeholder="Иван"></div>
+          <div class="field"><label>Фамилия</label><input type="text" id="plname" placeholder="Петров"></div>
+        </div>
+        <div class="field"><label>Username</label><input type="text" id="puname-input" placeholder="ivan_petrov"></div>
+        <div class="field"><label>Email</label><input type="email" id="pemail" placeholder="you@company.com"></div>
+        <div class="field-row">
+          <div class="field"><label>Компания</label><input type="text" id="pcomp" placeholder="ООО Ромашка"></div>
+          <div class="field"><label>Должность</label><input type="text" id="pjob" placeholder="Аналитик..."></div>
+        </div>
+        <div class="field"><label>Опыт</label>
+          <select id="pexp">
+            <option value="нет опыта">Нет опыта</option>
+            <option value="менее 1 года">Менее 1 года</option>
+            <option value="1-3 года">1–3 года</option>
+            <option value="3-5 лет">3–5 лет</option>
+            <option value="более 5 лет">Более 5 лет</option>
+          </select>
+        </div>
+        <button class="btn btn-b btn-sm" onclick="saveProfile()">Сохранить изменения</button>
+      </div>
+      <div class="card section-gap">
+        <div class="card-title">Смена пароля</div>
+        <div id="pw-err" class="merr h"></div>
+        <div id="pw-ok" class="mok h"></div>
+        <div class="field"><label>Текущий пароль</label><input type="password" id="pwcur" placeholder="••••••••"></div>
+        <div class="field">
+          <label>Новый пароль</label>
+          <input type="password" id="pwnew" placeholder="Минимум 6 символов" oninput="checkPwStrength(this.value,'pwfill2')">
+          <div class="pw-meter"><div class="pw-fill" id="pwfill2" style="width:0%"></div></div>
+        </div>
+        <div class="field"><label>Подтвердить пароль</label><input type="password" id="pwconf" placeholder="Повтори пароль"></div>
+        <button class="btn btn-b btn-sm" onclick="changePassword()">Изменить пароль</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Статистика</div>
+        <div class="sgrid" id="pstats" style="margin-bottom:0"></div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+      <div class="ptitle">CRM — Аналитика обучения</div>
+      <div class="psub" id="admco"></div>
+      <div class="sgrid">
+        <div class="sc"><div class="sv" id="au">0</div><div class="sl">Сотрудников</div></div>
+        <div class="sc"><div class="sv" id="aa">0</div><div class="sl">Активных (7д)</div></div>
+        <div class="sc"><div class="sv" id="as">0%</div><div class="sl">Средний балл</div></div>
+        <div class="sc"><div class="sv" id="ah">0 ч</div><div class="sl">Часов обучения</div></div>
+        <div class="sc"><div class="sv" id="at">0</div><div class="sl">Тестов пройдено</div></div>
+        <div class="sc"><div class="sv" id="ac">0%</div><div class="sl">% завершения</div></div>
+      </div>
+      <div class="twocol">
+        <div class="card"><div class="card-title">Топ тем</div><div id="atopics"></div></div>
+        <div class="card"><div class="card-title">Распределение баллов</div><div id="adist"></div></div>
+      </div>
+      <div class="card">
+        <div class="rflex">
+          <div class="card-title" style="margin:0;flex:1">Сотрудники</div>
+          <input class="srch" id="asrch" placeholder="Поиск..." oninput="renderTable()">
+        </div>
+        <div class="twrap">
+          <table>
+            <thead><tr>
+              <th>Сотрудник</th><th>Email</th><th>Должность</th><th>Опыт</th>
+              <th>Часов</th><th>Тестов</th><th>Ср. балл</th><th>Прогресс</th><th>Статус</th>
+            </tr></thead>
+            <tbody id="atbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════
+var CONFIG = {
+  // MODE:
+  // 'proxy'  — запросы через /api/ask на твоём сервере (БЕЗОПАСНО, ключ на сервере)
+  // 'direct' — прямой запрос (нужен API_KEY, только для теста локально)
+  // 'claude' — внутри claude.ai (ключ не нужен)
+  MODE: 'proxy',
+
+  API_KEY: '',
+  PROXY_URL: '/api/ask',
+  DIRECT_URL: 'https://api.anthropic.com/v1/messages',
+  MODEL: 'claude-sonnet-4-20250514',
+  CACHE_TTL: 30 * 60 * 1000
+};
+
+// ═══════════════════════════════════════════════════
+//  FALLBACK QUESTIONS (если API недоступен)
+// ═══════════════════════════════════════════════════
+var FALLBACK = {
+  'excel': [
+    {q:'Какая формула вернёт значение из столбца B, если в столбце A найдено совпадение с ячейкой D1?',options:['A. =VLOOKUP(D1,A:B,2,0)','B. =HLOOKUP(D1,A:B,2,0)','C. =INDEX(A:A,MATCH(D1,B:B,0))','D. =FIND(D1,A:B)'],correct:0,explanation:'VLOOKUP ищет значение D1 в первом столбце диапазона A:B и возвращает значение из 2-го столбца. 0 означает точное совпадение.'},
+    {q:'Формула =IF(A1>100,"Много","Мало") вернёт "Много" если:',options:['A. A1 равно 100','B. A1 больше 100','C. A1 меньше 100','D. A1 содержит текст'],correct:1,explanation:'Условие A1>100 истинно только когда A1 строго больше 100. При A1=100 вернётся "Мало".'},
+    {q:'=SUMIF(A:A,"Москва",B:B) — что делает эта формула?',options:['A. Считает количество ячеек "Москва" в столбце A','B. Суммирует B, если соответствующая ячейка A = "Москва"','C. Ищет "Москва" в B и суммирует A','D. Возвращает ошибку'],correct:1,explanation:'SUMIF(диапазон_условия, условие, диапазон_суммирования) — суммирует значения из B там, где в A написано "Москва".'},
+    {q:'Чем INDEX/MATCH лучше VLOOKUP при поиске слева?',options:['A. INDEX/MATCH работает только вправо','B. VLOOKUP не может искать влево, INDEX/MATCH может','C. Они одинаковы','D. VLOOKUP быстрее'],correct:1,explanation:'VLOOKUP всегда ищет в первом столбце и возвращает значение правее. INDEX/MATCH позволяет вернуть значение из любого столбца, в том числе левее столбца поиска.'},
+    {q:'Формула =COUNTIF(A1:A100,">50") подсчитывает:',options:['A. Сумму чисел больше 50','B. Среднее чисел больше 50','C. Количество ячеек со значением больше 50','D. Количество ячеек равных 50'],correct:2,explanation:'COUNTIF считает количество ячеек, удовлетворяющих условию. Здесь — сколько ячеек в A1:A100 содержат число больше 50.'}
+  ],
+  'sql': [
+    {q:'Какой запрос вернёт уникальные значения столбца city из таблицы users?',options:['A. SELECT city FROM users','B. SELECT DISTINCT city FROM users','C. SELECT UNIQUE city FROM users','D. SELECT city GROUP BY users'],correct:1,explanation:'DISTINCT убирает дублирующиеся строки из результата. SELECT UNIQUE — не стандартный SQL синтаксис.'},
+    {q:'Что вернёт запрос: SELECT COUNT(*) FROM orders WHERE status = "paid"?',options:['A. Список оплаченных заказов','B. Сумму оплаченных заказов','C. Количество оплаченных заказов','D. Первый оплаченный заказ'],correct:2,explanation:'COUNT(*) считает количество строк. WHERE фильтрует только строки со status = "paid".'},
+    {q:'Чем отличается LEFT JOIN от INNER JOIN?',options:['A. LEFT JOIN возвращает только совпадения','B. LEFT JOIN возвращает все строки левой таблицы, INNER — только совпадения','C. Они одинаковы','D. INNER JOIN медленнее'],correct:1,explanation:'INNER JOIN возвращает строки, где есть совпадение в обеих таблицах. LEFT JOIN дополнительно возвращает все строки левой таблицы, заполняя NULL там, где совпадения нет.'},
+    {q:'Какое ключевое слово используется для фильтрации результатов GROUP BY?',options:['A. WHERE','B. FILTER','C. HAVING','D. AND'],correct:2,explanation:'WHERE фильтрует строки до группировки. HAVING фильтрует уже сгруппированные результаты. Например: GROUP BY city HAVING COUNT(*) > 10.'},
+    {q:'SELECT name, SUM(amount) FROM sales GROUP BY name ORDER BY SUM(amount) DESC LIMIT 3 — что вернёт этот запрос?',options:['A. Все продажи по имени','B. Топ-3 продавца по сумме продаж','C. 3 случайные строки','D. Ошибку синтаксиса'],correct:1,explanation:'Запрос группирует продажи по имени, суммирует, сортирует по убыванию суммы и ограничивает результат тремя строками — это топ-3 по объёму.'}
+  ]
+};
+
+function getFallback(topic, count) {
+  var isSQL = topic.toLowerCase().indexOf('sql') >= 0;
+  var pool = isSQL ? FALLBACK.sql : FALLBACK.excel;
+  var shuffled = pool.slice().sort(function(){ return Math.random() - 0.5; });
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+// ═══════════════════════════════════════════════════
+//  DB / STORAGE
+// ═══════════════════════════════════════════════════
+function dbGet(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function dbSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){ console.warn('Storage full'); } }
+function dbDel(k){ localStorage.removeItem(k); }
+function getUsers(){ return dbGet('st_u') || {}; }
+function saveUsers(u){ dbSet('st_u',u); }
+function getSess(){ return dbGet('st_s') || {}; }
+function saveSess(s){ dbSet('st_s',s); }
+function getUD(id){ return dbGet('st_d_'+id) || {tests:[],secs:0,streak:0,lastDay:null}; }
+function saveUD(id,d){ dbSet('st_d_'+id,d); }
+
+// QUESTION CACHE: key = topic::level, val = {qs:[...], ts: timestamp}
+function getCached(topic, level){
+  var key = 'st_qc_' + btoa(encodeURIComponent(topic+'::'+level)).slice(0,32);
+  var c = dbGet(key);
+  if(!c) return null;
+  if(Date.now() - c.ts > CONFIG.CACHE_TTL) { dbDel(key); return null; }
+  return c.qs;
+}
+function setCache(topic, level, qs){
+  var key = 'st_qc_' + btoa(encodeURIComponent(topic+'::'+level)).slice(0,32);
+  dbSet(key, {qs:qs, ts:Date.now()});
+}
+
+// ═══════════════════════════════════════════════════
+//  SEED OWNER
+// ═══════════════════════════════════════════════════
+(function(){
+  var u = getUsers();
+  if(!u['owner@skilltrainer.io']){
+    u['owner@skilltrainer.io'] = {
+      id:'owner', fname:'Владелец', lname:'', username:'owner',
+      name:'Владелец', email:'owner@skilltrainer.io',
+      company:'SkillTrainer', jobRole:'Администратор', experience:'более 5 лет',
+      password:'admin123', role:'owner', ts:Date.now()
+    };
+    saveUsers(u);
+  }
+})();
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+var CU = null;
+var selTopic_val = 'Excel: формулы (VLOOKUP, IF, SUMIF, INDEX/MATCH)';
+var selLevel_val = 'начальный';
+var QS = {questions:[],current:0,answers:[],topic:'',level:'',start:0,elapsed:0,timer:null};
+var adminRows = [];
+
+// ═══════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════
+function showReg(){ el('vlogin').classList.add('h'); el('vreg').classList.remove('h'); }
+function showLogin(){ el('vreg').classList.add('h'); el('vlogin').classList.remove('h'); }
+
+function checkPwStrength(val, fillId){
+  fillId = fillId || 'pwfill';
+  var score = 0;
+  if(val.length >= 6) score++;
+  if(val.length >= 10) score++;
+  if(/[A-Z]/.test(val)) score++;
+  if(/[0-9]/.test(val)) score++;
+  if(/[^A-Za-z0-9]/.test(val)) score++;
+  var pct = Math.round(score / 5 * 100);
+  var color = score <= 1 ? 'var(--red)' : score <= 3 ? 'var(--amber)' : 'var(--green)';
+  var f = el(fillId);
+  if(f){ f.style.width = pct+'%'; f.style.background = color; }
+}
+
+function doLogin(){
+  var email = el('lemail').value.trim().toLowerCase();
+  var pass = el('lpass').value;
+  var e = el('lerr');
+  hide(e);
+  if(!email||!pass){ show(e,'Заполни все поля'); return; }
+  var u = getUsers();
+  if(!u[email]){ show(e,'Пользователь не найден'); return; }
+  if(u[email].password !== pass){ show(e,'Неверный пароль'); return; }
+  var s = getSess();
+  var tok = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  s[tok] = email; saveSess(s); dbSet('st_tok',tok);
+  CU = u[email]; initApp();
+}
+
+function doReg(){
+  var fname = el('rfname').value.trim();
+  var lname = el('rlname').value.trim();
+  var uname = el('runame').value.trim();
+  var email = el('remail').value.trim().toLowerCase();
+  var comp  = el('rcomp').value.trim();
+  var jrole = el('rrole').value.trim();
+  var exp   = el('rexp').value;
+  var pass  = el('rpass').value;
+  var e = el('rerr'); var ok = el('rok');
+  hide(e); hide(ok);
+  if(!fname||!email||!comp||!pass){ show(e,'Заполни обязательные поля (Имя, Email, Компания, Пароль)'); return; }
+  if(pass.length < 6){ show(e,'Пароль минимум 6 символов'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ show(e,'Введи корректный email'); return; }
+  var u = getUsers();
+  if(u[email]){ show(e,'Email уже зарегистрирован'); return; }
+  var id = 'u_'+Date.now();
+  var fullName = (fname + ' ' + lname).trim();
+  var nu = {
+    id:id, fname:fname, lname:lname, username:uname||fname.toLowerCase(),
+    name:fullName, email:email,
+    company:comp, jobRole:jrole, experience:exp,
+    password:pass, role:'user', ts:Date.now()
+  };
+  u[email] = nu; saveUsers(u);
+  var s = getSess();
+  var tok = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  s[tok] = email; saveSess(s); dbSet('st_tok',tok);
+  ok.textContent = 'Аккаунт создан! Входим...';
+  ok.classList.remove('h');
+  setTimeout(function(){ CU = nu; initApp(); }, 600);
+}
+
+function doLogout(){
+  var tok = dbGet('st_tok');
+  if(tok){ var s=getSess(); delete s[tok]; saveSess(s); }
+  dbDel('st_tok'); CU = null;
+  el('app').classList.add('h'); el('auth').classList.remove('h'); showLogin();
+  el('lemail').value=''; el('lpass').value='';
+}
+
+function autoLogin(){
+  var tok = dbGet('st_tok'); if(!tok) return false;
+  var s = getSess(); var email = s[tok]; if(!email) return false;
+  var u = getUsers(); if(!u[email]) return false;
+  CU = u[email]; return true;
+}
+
+// ═══════════════════════════════════════════════════
+//  APP INIT
+// ═══════════════════════════════════════════════════
+function initApp(){
+  el('auth').classList.add('h'); el('app').classList.remove('h');
+  updateSidebar();
+  if(CU.role==='owner'||CU.role==='admin') el('adminnav').classList.remove('h');
+  else el('adminnav').classList.add('h');
+  renderDash(); renderAch(); go('dashboard');
+}
+
+function updateSidebar(){
+  var ini = ((CU.fname||'')[0]||'') + ((CU.lname||'')[0]||'');
+  if(!ini) ini = (CU.name||'?')[0];
+  el('sav').textContent = ini.toUpperCase();
+  el('sname').textContent = CU.name || CU.fname || 'Пользователь';
+  var rl = CU.role==='owner'?'Владелец':CU.role==='admin'?'Администратор':(CU.jobRole||'Сотрудник');
+  el('srole').textContent = rl;
+}
+
+// ═══════════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════════
+function go(id){
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+  document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('on'); });
+  el('page-'+id).classList.add('on');
+  var ni = el('nav-'+id); if(ni) ni.classList.add('on');
+  if(id==='dashboard') renderDash();
+  if(id==='achievements') renderAch();
+  if(id==='admin') renderAdmin();
+  if(id==='profile') renderProfile();
+  if(id==='learn') updateCacheHint();
+}
+
+// ═══════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════
+function renderDash(){
+  if(!CU) return;
+  var ud = getUD(CU.id);
+  var fn = CU.fname || CU.name.split(' ')[0];
+  el('dgreet').textContent = 'Привет, ' + fn + '! 👋';
+  var h = Math.floor(ud.secs/3600);
+  var m = Math.floor((ud.secs%3600)/60);
+  el('dhours').textContent = h + ' ч ' + m + ' мин';
+  var ts = ud.tests || [];
+  el('dtests').textContent = ts.length;
+  var avg = ts.length ? Math.round(ts.reduce(function(s,t){ return s+t.pct; },0)/ts.length) : 0;
+  el('dscore').textContent = avg + '%';
+  el('dstreak').textContent = ud.streak || 0;
+  var tops = {};
+  ts.forEach(function(t){ tops[t.topic]=1; });
+  el('dtopics').textContent = Object.keys(tops).length;
+  var hist = el('dhist');
+  if(!ts.length){
+    hist.innerHTML = '<div style="font-size:13px;color:var(--hint);padding:.5rem 0">Нет тестов. <a style="color:var(--blue);cursor:pointer" onclick="go(\'learn\')">Начать →</a></div>';
+    return;
+  }
+  var rec = ts.slice().reverse().slice(0,5);
+  hist.innerHTML = rec.map(function(t){
+    var d = new Date(t.date).toLocaleDateString('ru');
+    var cl = t.pct>=80?'bg':t.pct>=50?'ba':'br';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:.5px solid var(--border)">'+
+      '<div style="flex:1;font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+t.topic+'</div>'+
+      '<div style="font-size:12px;color:var(--hint);flex-shrink:0">'+d+'</div>'+
+      '<span class="badge '+cl+'" style="flex-shrink:0">'+t.pct+'%</span></div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  TOPIC / LEVEL
+// ═══════════════════════════════════════════════════
+function selTopic(el2){
+  document.querySelectorAll('.tc').forEach(function(c){ c.classList.remove('sel'); });
+  el2.classList.add('sel');
+  selTopic_val = el2.getAttribute('data-t');
+  updateCacheHint();
+}
+function selLevel(el2){
+  document.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('on'); });
+  el2.classList.add('on');
+  selLevel_val = el2.getAttribute('data-lv');
+  updateCacheHint();
+}
+function updateCacheHint(){
+  var cached = getCached(selTopic_val, selLevel_val);
+  var h = el('cache-hint');
+  if(!h) return;
+  h.textContent = cached ? '⚡ Вопросы кешированы — загрузка мгновенная' : '';
+}
+
+// ═══════════════════════════════════════════════════
+//  QUIZ — START
+// ═══════════════════════════════════════════════════
+async function startQuiz(){
+  var cnt = parseInt(el('qcnt').value);
+  QS = {questions:[],current:0,answers:[],topic:selTopic_val,level:selLevel_val,start:Date.now(),elapsed:0,timer:null};
+  go('quiz');
+
+  // show loading
+  el('qload').classList.remove('h');
+  el('quiz-content').classList.add('h');
+  el('lstep1').classList.remove('vis');
+  el('lstep2').classList.remove('vis');
+  el('lstep3').classList.remove('vis');
+
+  // check cache first
+  var cached = getCached(selTopic_val, selLevel_val);
+  if(cached && cached.length >= cnt){
+    var shuffled = cached.slice().sort(function(){ return Math.random()-.5; });
+    QS.questions = shuffled.slice(0, cnt);
+    el('qload').classList.add('h');
+    el('quiz-content').classList.remove('h');
+    el('qerr').classList.add('h');
+    startTimer(); showQ();
+    return;
+  }
+
+  // loading steps animation
+  var steps = ['lstep1','lstep2','lstep3'];
+  var si = 0;
+  var stepTimer = setInterval(function(){
+    if(si < steps.length){ el(steps[si]).classList.add('vis'); si++; }
+    else clearInterval(stepTimer);
+  }, 600);
+
+  var questions = await fetchQuestions(cnt);
+  clearInterval(stepTimer);
+
+  if(questions && questions.length){
+    setCache(selTopic_val, selLevel_val, questions);
+    QS.questions = questions.slice(0, cnt);
+    el('qload').classList.add('h');
+    el('quiz-content').classList.remove('h');
+    el('qerr').classList.add('h');
+    startTimer(); showQ();
+  } else {
+    // fallback
+    QS.questions = getFallback(selTopic_val, cnt);
+    if(QS.questions.length){
+      el('qload').classList.add('h');
+      el('quiz-content').classList.remove('h');
+      el('qerr').textContent = 'AI недоступен — используем заготовленные вопросы.';
+      el('qerr').classList.remove('h');
+      startTimer(); showQ();
+    } else {
+      el('qload').classList.add('h');
+      el('quiz-content').classList.remove('h');
+      el('qerr').textContent = 'Не удалось загрузить вопросы. Проверь соединение.';
+      el('qerr').classList.remove('h');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  QUIZ — API FETCH
+// ═══════════════════════════════════════════════════
+async function fetchQuestions(cnt){
+  var jobRole = CU.jobRole || 'не указана';
+  var exp = CU.experience || 'не указан';
+  var prompt = [
+    'Ты — корпоративный тренер и эксперт по обучению сотрудников.',
+    'Твоя задача — создать тест для обучения.',
+    'Параметры:',
+    '- Тема: "' + selTopic_val + '"',
+    '- Уровень: "' + selLevel_val + '"',
+    '- Количество вопросов: ' + cnt,
+    '- Роль пользователя: "' + jobRole + '"',
+    '- Опыт пользователя: "' + exp + '"',
+    'Требования к вопросам:',
+    '- Практические, приближенные к реальной работе',
+    '- Используй примеры: Excel формулы, SQL запросы, бизнес-ситуации',
+    '- Не теоретические и не абстрактные',
+    '- Адаптируй под уровень и опыт пользователя',
+    'ВАЖНО: Ответь строго JSON массивом, без markdown, без комментариев.',
+    'Структура каждого элемента:',
+    '{"q":"текст вопроса","options":["A. вариант","B. вариант","C. вариант","D. вариант"],"correct":0,"explanation":"1-2 предложения"}',
+    'correct: 0=A, 1=B, 2=C, 3=D'
+  ].join('\n');
+
+  var url, headers;
+  if(CONFIG.MODE === 'proxy'){
+    url = CONFIG.PROXY_URL;
+    headers = { 'Content-Type': 'application/json' };
+  } else if(CONFIG.MODE === 'direct'){
+    url = CONFIG.DIRECT_URL;
+    headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': CONFIG.API_KEY,
+      'anthropic-version': '2023-06-01'
+    };
+  } else {
+    url = CONFIG.DIRECT_URL;
+    headers = { 'Content-Type': 'application/json' };
+  }
+
+  try {
+    var resp = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        model: CONFIG.MODEL,
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if(!resp.ok){
+      var errData = await resp.json().catch(function(){ return {}; });
+      console.warn('API error:', resp.status, errData);
+      return null;
+    }
+
+    var data = await resp.json();
+    if(!data.content || !data.content.length) return null;
+
+    var txt = data.content.map(function(b){ return b.text||''; }).join('');
+    var clean = txt.replace(/```json[\s\S]*?```/g, function(m){ return m.replace(/```json\n?/,'').replace(/\n?```/,''); });
+    clean = clean.replace(/```/g,'').trim();
+
+    // extract JSON array
+    var match = clean.match(/\[[\s\S]*\]/);
+    if(match) clean = match[0];
+
+    var parsed = JSON.parse(clean);
+    if(!Array.isArray(parsed) || !parsed.length) return null;
+    return parsed;
+
+  } catch(err) {
+    console.warn('fetchQuestions error:', err);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  QUIZ — TIMER & QUESTIONS
+// ═══════════════════════════════════════════════════
+function startTimer(){
+  clearInterval(QS.timer);
+  QS.timer = setInterval(function(){
+    QS.elapsed = Math.floor((Date.now()-QS.start)/1000);
+    var m = String(Math.floor(QS.elapsed/60)).padStart(2,'0');
+    var s = String(QS.elapsed%60).padStart(2,'0');
+    el('qtimer').textContent = m+':'+s;
+  }, 1000);
+}
+
+function showQ(){
+  var q = QS.questions[QS.current];
+  var tot = QS.questions.length;
+  el('qnum').textContent = 'Вопрос '+(QS.current+1)+' из '+tot;
+  el('qpbar').style.width = Math.round(QS.current/tot*100)+'%';
+  el('qexpl').classList.add('h');
+  el('qnext').classList.add('h');
+  el('qqtext').textContent = q.q;
+  var opts = el('qopts'); opts.innerHTML='';
+  var letters = ['A','B','C','D'];
+  q.options.forEach(function(opt,i){
+    var b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = '<span class="lt">'+letters[i]+'.</span>'+opt.replace(/^[A-D]\.\s*/,'');
+    b.onclick = function(){ pickOpt(i); };
+    opts.appendChild(b);
+  });
+}
+
+function pickOpt(idx){
+  var q = QS.questions[QS.current];
+  var btns = el('qopts').querySelectorAll('.opt');
+  btns.forEach(function(b){ b.disabled=true; });
+  btns[q.correct].classList.add('cor');
+  if(idx !== q.correct) btns[idx].classList.add('wrg');
+  QS.answers.push({q:q.q, ok:idx===q.correct, correct:q.options[q.correct]});
+  el('qexpl').textContent = q.explanation;
+  el('qexpl').classList.remove('h');
+  var nb = el('qnext');
+  nb.textContent = QS.current+1 < QS.questions.length ? 'Следующий →' : 'Посмотреть результаты →';
+  nb.classList.remove('h');
+}
+
+function qNext(){
+  QS.current++;
+  if(QS.current < QS.questions.length){ showQ(); }
+  else{ clearInterval(QS.timer); saveResult(); showResults(); }
+}
+
+// ═══════════════════════════════════════════════════
+//  QUIZ — SAVE & RESULTS
+// ═══════════════════════════════════════════════════
+function saveResult(){
+  var cor = QS.answers.filter(function(a){ return a.ok; }).length;
+  var tot = QS.answers.length;
+  var pct = Math.round(cor/tot*100);
+  var ud = getUD(CU.id);
+  ud.secs = (ud.secs||0) + QS.elapsed;
+  var today = new Date().toDateString();
+  if(ud.lastDay !== today){
+    var yest = new Date(Date.now()-86400000).toDateString();
+    ud.streak = ud.lastDay===yest ? (ud.streak||0)+1 : 1;
+    ud.lastDay = today;
+  }
+  ud.tests = ud.tests || [];
+  ud.tests.push({topic:QS.topic, level:QS.level, correct:cor, total:tot, pct:pct, secs:QS.elapsed, date:Date.now()});
+  saveUD(CU.id, ud);
+  toast('Результат сохранён! ✓');
+}
+
+function showResults(){
+  var ans = QS.answers;
+  var cor = ans.filter(function(a){ return a.ok; }).length;
+  var tot = ans.length;
+  var pct = Math.round(cor/tot*100);
+  el('rsub').textContent = QS.topic + ' · ' + QS.level;
+  el('rcirc').textContent = pct+'%';
+  el('rcirc').style.borderColor = pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
+  el('rcirc').style.color = pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
+  el('rcor').textContent = cor;
+  el('rtot').textContent = tot;
+  el('rtime').textContent = Math.floor(QS.elapsed/60)+' мин '+QS.elapsed%60+' с';
+  el('remo').textContent = pct>=80?'🎉':pct>=50?'👍':'📖';
+  el('rmsg').textContent = pct>=80?'Отличный результат!':pct>=50?'Неплохо, есть куда расти':'Стоит повторить тему';
+  el('rlist').innerHTML = ans.map(function(a,i){
+    var wrong = a.ok?'':'<div class="ria">Правильно: '+a.correct+'</div>';
+    return '<div class="ri '+(a.ok?'ok':'fail')+'"><div class="rdot"></div><div><div class="riq">'+QS.questions[i].q+'</div>'+wrong+'</div></div>';
+  }).join('');
+  renderAch(); go('results');
+}
+
+// ═══════════════════════════════════════════════════
+//  ACHIEVEMENTS
+// ═══════════════════════════════════════════════════
+var ACHS = [
+  {id:'first', ico:'🚀', name:'Первый шаг',     desc:'Пройти первый тест',           fn:function(u){ return u.tests.length>=1; }},
+  {id:'five',  ico:'⭐', name:'Пять тестов',    desc:'Пройти 5 тестов',              fn:function(u){ return u.tests.length>=5; }},
+  {id:'ten',   ico:'🔟', name:'Десятка',        desc:'Пройти 10 тестов',             fn:function(u){ return u.tests.length>=10; }},
+  {id:'hour',  ico:'⏱️', name:'Час обучения',  desc:'1 час суммарного времени',      fn:function(u){ return u.secs>=3600; }},
+  {id:'5h',    ico:'🕔', name:'Пять часов',    desc:'5 часов обучения',              fn:function(u){ return u.secs>=18000; }},
+  {id:'perf',  ico:'💯', name:'Идеально!',     desc:'100% в одном тесте',            fn:function(u){ return u.tests.some(function(t){ return t.pct===100; }); }},
+  {id:'str3',  ico:'🔥', name:'Три дня',       desc:'3 дня подряд',                  fn:function(u){ return (u.streak||0)>=3; }},
+  {id:'str7',  ico:'🌟', name:'Неделя',        desc:'7 дней подряд',                 fn:function(u){ return (u.streak||0)>=7; }},
+  {id:'top3',  ico:'📚', name:'Разносторонний',desc:'Изучить 3 разные темы',         fn:function(u){ var t={}; u.tests.forEach(function(x){ t[x.topic]=1; }); return Object.keys(t).length>=3; }},
+  {id:'avg80', ico:'🏆', name:'Высший балл',   desc:'Средний балл > 80% (мин 3 теста)',fn:function(u){ if(u.tests.length<3) return false; return Math.round(u.tests.reduce(function(s,t){ return s+t.pct; },0)/u.tests.length)>=80; }},
+  {id:'adv',   ico:'🎓', name:'Эксперт',       desc:'Пройти тест на уровне Продвинутый',fn:function(u){ return u.tests.some(function(t){ return t.level==='продвинутый'; }); }},
+  {id:'spd',   ico:'⚡', name:'Молния',        desc:'Завершить тест быстрее 3 минут', fn:function(u){ return u.tests.some(function(t){ return t.secs<180; }); }},
+];
+
+function renderAch(){
+  if(!CU) return;
+  var ud = getUD(CU.id);
+  el('agrid').innerHTML = ACHS.map(function(a){
+    var done = a.fn(ud);
+    return '<div class="ac'+(done?'':' lk')+'">'+
+      '<div class="aico">'+a.ico+'</div>'+
+      '<div class="an">'+a.name+'</div>'+
+      '<div class="ad">'+a.desc+'</div>'+
+      '<span class="abadge '+(done?'done':'lk')+'">'+(done?'Получено':'Заблокировано')+'</span>'+
+      '</div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  PROFILE
+// ═══════════════════════════════════════════════════
+function renderProfile(){
+  if(!CU) return;
+  var ud = getUD(CU.id);
+  var ini = ((CU.fname||'')[0]||'') + ((CU.lname||'')[0]||'');
+  if(!ini) ini = (CU.name||'?')[0];
+  el('pav').textContent = ini.toUpperCase();
+  el('pname').textContent = CU.name || CU.fname || 'Пользователь';
+  el('pmeta').textContent = [(CU.jobRole||''), CU.company||''].filter(Boolean).join(' · ');
+  el('puname').textContent = '@' + (CU.username||CU.email.split('@')[0]);
+
+  el('pfname').value      = CU.fname || '';
+  el('plname').value      = CU.lname || '';
+  el('puname-input').value = CU.username || '';
+  el('pemail').value      = CU.email || '';
+  el('pcomp').value       = CU.company || '';
+  el('pjob').value        = CU.jobRole || '';
+  el('pexp').value        = CU.experience || 'нет опыта';
+
+  var ts = ud.tests || [];
+  var avg = ts.length ? Math.round(ts.reduce(function(s,t){ return s+t.pct; },0)/ts.length) : 0;
+  var h = Math.floor(ud.secs/3600);
+  var m = Math.floor((ud.secs%3600)/60);
+  el('pstats').innerHTML =
+    '<div class="sc"><div class="sv">'+ts.length+'</div><div class="sl">Тестов</div></div>'+
+    '<div class="sc"><div class="sv">'+avg+'%</div><div class="sl">Средний балл</div></div>'+
+    '<div class="sc"><div class="sv">'+h+' ч '+m+' мин</div><div class="sl">Время обучения</div></div>'+
+    '<div class="sc"><div class="sv">'+(ud.streak||0)+'</div><div class="sl">Дней подряд</div></div>';
+}
+
+function saveProfile(){
+  var fname = el('pfname').value.trim();
+  var lname = el('plname').value.trim();
+  var uname = el('puname-input').value.trim();
+  var email = el('pemail').value.trim().toLowerCase();
+  var comp  = el('pcomp').value.trim();
+  var job   = el('pjob').value.trim();
+  var exp   = el('pexp').value;
+  var e = el('profile-err'); var ok = el('profile-ok');
+  hide(e); hide(ok);
+  if(!fname||!email){ show(e,'Имя и Email обязательны'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ show(e,'Введи корректный email'); return; }
+  var users = getUsers();
+  // check email conflict
+  if(email !== CU.email && users[email]){ show(e,'Email уже занят другим пользователем'); return; }
+  // update
+  var oldEmail = CU.email;
+  CU.fname = fname; CU.lname = lname;
+  CU.name = (fname+' '+lname).trim();
+  CU.username = uname || fname.toLowerCase();
+  CU.email = email;
+  CU.company = comp; CU.jobRole = job; CU.experience = exp;
+  // re-key if email changed
+  if(email !== oldEmail){
+    users[email] = CU;
+    delete users[oldEmail];
+    // update session
+    var tok = dbGet('st_tok');
+    if(tok){ var s=getSess(); s[tok]=email; saveSess(s); }
+  } else {
+    users[email] = CU;
+  }
+  saveUsers(users);
+  updateSidebar();
+  renderProfile();
+  show(ok,'Данные сохранены!');
+  setTimeout(function(){ hide(ok); }, 2500);
+  toast('Профиль обновлён ✓');
+}
+
+function changePassword(){
+  var cur  = el('pwcur').value;
+  var nw   = el('pwnew').value;
+  var conf = el('pwconf').value;
+  var e = el('pw-err'); var ok = el('pw-ok');
+  hide(e); hide(ok);
+  if(!cur||!nw||!conf){ show(e,'Заполни все поля'); return; }
+  if(CU.password !== cur){ show(e,'Неверный текущий пароль'); return; }
+  if(nw.length < 6){ show(e,'Новый пароль минимум 6 символов'); return; }
+  if(nw !== conf){ show(e,'Пароли не совпадают'); return; }
+  var users = getUsers();
+  CU.password = nw;
+  users[CU.email] = CU;
+  saveUsers(users);
+  el('pwcur').value=''; el('pwnew').value=''; el('pwconf').value='';
+  el('pwfill2').style.width='0%';
+  show(ok,'Пароль успешно изменён!');
+  setTimeout(function(){ hide(ok); }, 2500);
+  toast('Пароль изменён ✓');
+}
+
+// ═══════════════════════════════════════════════════
+//  ADMIN
+// ═══════════════════════════════════════════════════
+function renderAdmin(){
+  if(!CU) return;
+  var isOwner = CU.role==='owner';
+  var users = getUsers();
+  el('admco').textContent = isOwner ? 'Все компании — Режим владельца' : 'Компания: '+CU.company;
+  var list = Object.values(users).filter(function(u){ return isOwner||u.company===CU.company; });
+  var totSecs=0, totCor=0, totQ=0, active=0;
+  var topicCnt={}, buckets={'0-49':0,'50-69':0,'70-89':0,'90-100':0};
+  var week = Date.now() - 7*86400000;
+
+  adminRows = list.map(function(u){
+    var ud = getUD(u.id);
+    var ts = ud.tests||[];
+    var hrs = Math.round(ud.secs/3600*10)/10;
+    var avg = ts.length ? Math.round(ts.reduce(function(s,t){ return s+t.pct; },0)/ts.length) : 0;
+    var recentlyActive = ts.some(function(t){ return t.date>week; });
+    if(recentlyActive) active++;
+    totSecs += ud.secs||0;
+    ts.forEach(function(t){
+      totCor+=t.correct; totQ+=t.total;
+      topicCnt[t.topic] = (topicCnt[t.topic]||0)+1;
+      if(t.pct<50) buckets['0-49']++;
+      else if(t.pct<70) buckets['50-69']++;
+      else if(t.pct<90) buckets['70-89']++;
+      else buckets['90-100']++;
+    });
+    var prog = Math.min(100, Math.round(ts.length/10*100));
+    return {
+      u:u, ts:ts, hrs:hrs, avg:avg, prog:prog,
+      status: ts.length===0?'br':recentlyActive?'bg':'ba',
+      statusLabel: ts.length===0?'Не начал':recentlyActive?'Активен':'Неактивен'
+    };
+  });
+
+  var totTests = adminRows.reduce(function(s,r){ return s+r.ts.length; },0);
+  el('au').textContent = list.length;
+  el('aa').textContent = active;
+  el('as').textContent = (totQ ? Math.round(totCor/totQ*100) : 0)+'%';
+  el('ah').textContent = Math.round(totSecs/3600*10)/10+' ч';
+  el('at').textContent = totTests;
+  var started = list.filter(function(u){ return (getUD(u.id).tests||[]).length>0; }).length;
+  el('ac').textContent = list.length ? Math.round(started/list.length*100)+'%' : '0%';
+
+  var topArr = Object.entries(topicCnt).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
+  var maxT = topArr.length ? topArr[0][1] : 1;
+  el('atopics').innerHTML = topArr.length ? topArr.map(function(p){
+    var t=p[0],c=p[1];
+    return '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">'+
+      '<span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:68%">'+t.split(':')[0]+'</span>'+
+      '<span style="color:var(--muted)">'+c+' тестов</span></div>'+
+      '<div class="pw"><div class="pf" style="width:'+Math.round(c/maxT*100)+'%"></div></div></div>';
+  }).join('') : '<div style="font-size:13px;color:var(--hint)">Нет данных</div>';
+
+  var maxS = Math.max.apply(null, Object.values(buckets).concat([1]));
+  var bcols = {'0-49':'var(--red)','50-69':'var(--amber)','70-89':'var(--blue)','90-100':'var(--green)'};
+  el('adist').innerHTML = Object.entries(buckets).map(function(p){
+    var r=p[0],c=p[1];
+    return '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">'+
+      '<span style="color:var(--text)">'+r+'%</span><span style="color:var(--muted)">'+c+'</span></div>'+
+      '<div class="pw"><div class="pf" style="width:'+Math.round(c/maxS*100)+'%;background:'+bcols[r]+'"></div></div></div>';
+  }).join('');
+
+  renderTable();
+}
+
+function renderTable(){
+  var q = (el('asrch')||{value:''}).value.toLowerCase();
+  var filtered = q ? adminRows.filter(function(r){
+    return r.u.name.toLowerCase().indexOf(q)>=0 || r.u.email.toLowerCase().indexOf(q)>=0 ||
+           (r.u.jobRole||'').toLowerCase().indexOf(q)>=0;
+  }) : adminRows;
+  el('atbody').innerHTML = filtered.map(function(r){
+    var roleLabel = r.u.role==='owner'?'Владелец':r.u.role==='admin'?'Админ':'';
+    var rb = roleLabel ? ' <span class="badge bp" style="font-size:11px">'+roleLabel+'</span>' : '';
+    var bc = r.prog>=70?'g':r.prog>=40?'':'a';
+    return '<tr>'+
+      '<td><span style="font-weight:500">'+r.u.name+'</span>'+rb+'</td>'+
+      '<td style="color:var(--muted)">'+r.u.email+'</td>'+
+      '<td style="color:var(--muted)">'+(r.u.jobRole||'—')+'</td>'+
+      '<td style="color:var(--muted)">'+(r.u.experience||'—')+'</td>'+
+      '<td>'+r.hrs+' ч</td>'+
+      '<td>'+r.ts.length+'</td>'+
+      '<td>'+r.avg+'%</td>'+
+      '<td style="min-width:110px"><div class="pw"><div class="pf '+bc+'" style="width:'+r.prog+'%"></div></div>'+
+      '<span style="font-size:11px;color:var(--hint)">'+r.prog+'%</span></td>'+
+      '<td><span class="badge '+r.status+'">'+r.statusLabel+'</span></td>'+
+      '</tr>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════
+function el(id){ return document.getElementById(id); }
+function show(el2, msg){ if(msg) el2.textContent=msg; el2.classList.remove('h'); }
+function hide(el2){ el2.classList.add('h'); }
+function toast(msg){
+  var t = el('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+// ═══════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════
+if(autoLogin()){ initApp(); }
+
+/*
+  ═══════════════════════════════════════════════════
+  README — ДЕПЛОЙ И API КЛЮЧ
+  ═══════════════════════════════════════════════════
+
+  1. NETLIFY (быстрый способ):
+     - Зайди на app.netlify.com/drop
+     - Перетащи этот файл
+     - Готово. Ссылка сразу работает.
+
+  2. VERCEL:
+     - npm i -g vercel
+     - vercel --name skilltrainer
+     - Или через vercel.com → Import → папка с файлом
+
+  3. GITHUB PAGES:
+     - Переименуй файл в index.html
+     - Загрузи в репозиторий
+     - Settings → Pages → Deploy from branch
+
+  ───────────────────────────────────────────────────
+  API КЛЮЧ (для деплоя вне claude.ai):
+
+  ВАРИАНТ A — простой (для внутреннего использования):
+    Вставь ключ в CONFIG.API_KEY выше.
+    ! Не публикуй файл с ключом в открытый доступ !
+
+  ВАРИАНТ B — безопасный (Netlify Functions):
+    1. Создай папку netlify/functions/ask.js:
+
+       exports.handler = async (event) => {
+         const body = JSON.parse(event.body);
+         const resp = await fetch('https://api.anthropic.com/v1/messages', {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             'x-api-key': process.env.ANTHROPIC_API_KEY,
+             'anthropic-version': '2023-06-01'
+           },
+           body: JSON.stringify(body)
+         });
+         const data = await resp.json();
+         return { statusCode: 200, body: JSON.stringify(data) };
+       };
+
+    2. В netlify.toml добавь:
+       [build]
+       functions = "netlify/functions"
+
+    3. В Netlify Dashboard → Environment variables добавь:
+       ANTHROPIC_API_KEY = sk-ant-...
+
+    4. В CONFIG.API_URL замени на:
+       '/.netlify/functions/ask'
+
+  ═══════════════════════════════════════════════════
+*/
+</script>
+</body>
+</html>
