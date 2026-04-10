@@ -83,7 +83,7 @@ const server = http.createServer((req, res) => {
         proxyRes.on('data', chunk => { data += chunk; });
         proxyRes.on('end', () => {
           res.writeHead(proxyRes.statusCode, {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
             ...corsHeaders(origin),
           });
           res.end(data);
