@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.ANTHROPIC_API_KEY || 'ВСТАВЬ_СВОЙ_КЛЮЧ_СЮДА';
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
-  'https://твой-домен.ru',   // ← замени на свой домен
+    'https://skilltrainer-production.up.railway.app',
 ];
 // ────────────────────────────────────────────────────
 
