@@ -62,7 +62,7 @@ const server = http.createServer((req, res) => {
 
       const payload = JSON.stringify({
         model: parsed.model || 'claude-haiku-3-5-20241022',
-        max_tokens: Math.min(parsed.max_tokens || 1500, 2000),
+        max_tokens: Math.min(parsed.max_tokens || 400, 500),
         messages: parsed.messages,
       });
 
